@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bodoni_Moda, IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { Preloader } from "@/components/Preloader";
 import "./globals.css";
 
 const display = Bodoni_Moda({
@@ -43,6 +44,7 @@ export default function RootLayout({
       className={`${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-ink text-silver">
+        <Preloader />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

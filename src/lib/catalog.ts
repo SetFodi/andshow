@@ -4,6 +4,7 @@ import {
   MOCK_TITLES,
   RAIL_DEFINITIONS,
 } from "@/data/mockMovies";
+import { dedupeTitles } from "@/lib/titles";
 import type { MediaType, Rail, RailItem, Title } from "@/lib/types";
 import {
   discoverMovies,
@@ -76,7 +77,7 @@ function toCatalogPage(
   totalPages: number,
   totalResults: number,
 ): CatalogPage {
-  return { titles, page, totalPages, totalResults, liveCatalog: true };
+  return { titles: dedupeTitles(titles), page, totalPages, totalResults, liveCatalog: true };
 }
 
 function toMockCatalogPage(titles: readonly Title[]): CatalogPage {

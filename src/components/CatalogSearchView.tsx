@@ -1,12 +1,12 @@
 "use client";
 
-import { AnimatePresence } from "framer-motion";
-import { Film, Search, Tv, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { CatalogImage } from "@/components/CatalogImage";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { CornerDownLeft, Film, Search, Tv, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MovieCard } from "@/components/MovieCard";
 import { MovieDetailModal } from "@/components/MovieDetailModal";
-import { backdropUrl } from "@/lib/tmdb-image";
+import { EASE_REEL, fadeRise, staggerContainer } from "@/lib/motion";
+import { dedupeTitles, titleKey } from "@/lib/titles";
 import type { MediaType, Title } from "@/lib/types";
 
 type MediaFilter = "all" | MediaType;
@@ -16,7 +16,14 @@ interface CatalogSearchViewProps {
   liveCatalog?: boolean;
 }
 
-const ALL_GENRES = "All genres";
+const MEDIA_TABS: { key: MediaFilter; label: string; icon: typeof Search }[] = [
+  { key: "all", label: "All", icon: Search },
+  { key: "movie", label: "Movies", icon: Film },
+  { key: "tv", label: "TV", icon: Tv },
+];
+
+const SUGGESTION_COUNT = 10;
+const DEBOUNCE_MS = 300;
 
 function includesQuery(title: Title, query: string): boolean {
   const needle = query.trim().toLocaleLowerCase();
@@ -37,17 +44,26 @@ function includesQuery(title: Title, query: string): boolean {
   return haystack.includes(needle);
 }
 
-export function CatalogSearchView({ titles: initialTitles, liveCatalog = false }: CatalogSearchViewProps) {
-  const [titles, setTitles] = useState<readonly Title[]>(initialTitles);
+export function CatalogSearchView({
+  titles: initialTitles,
+  liveCatalog = false,
+}: CatalogSearchViewProps) {
+  const prefersReducedMotion = useReducedMotion();
+  const [titles, setTitles] = useState<readonly Title[]>(() => dedupeTitles(initialTitles));
   const [query, setQuery] = useState("");
   const [mediaFilter, setMediaFilter] = useState<MediaFilter>("all");
-  const [selectedGenre, setSelectedGenre] = useState(ALL_GENRES);
   const [selectedTitle, setSelectedTitle] = useState<Title | null>(null);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setTitles(initialTitles);
+    setTitles(dedupeTitles(initialTitles));
   }, [initialTitles]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     if (!liveCatalog) return;
@@ -64,163 +80,206 @@ export function CatalogSearchView({ titles: initialTitles, liveCatalog = false }
         if (!response.ok) throw new Error("Search fetch failed");
 
         const data = (await response.json()) as { titles: Title[] };
-        setTitles(data.titles);
+        setTitles(dedupeTitles(data.titles));
       } finally {
         setLoading(false);
       }
-    }, 300);
+    }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(handle);
   }, [liveCatalog, mediaFilter, query]);
 
-  const availableGenres = useMemo(() => {
-    const scopedTitles =
-      mediaFilter === "all" ? titles : titles.filter((title) => title.mediaType === mediaFilter);
-    return [ALL_GENRES, ...new Set(scopedTitles.flatMap((title) => title.genres))];
-  }, [mediaFilter, titles]);
-  const activeGenre = availableGenres.includes(selectedGenre) ? selectedGenre : ALL_GENRES;
-
   const results = useMemo(() => {
     return titles
       .filter((title) => mediaFilter === "all" || title.mediaType === mediaFilter)
-      .filter((title) => activeGenre === ALL_GENRES || title.genres.includes(activeGenre))
       .filter((title) => liveCatalog || includesQuery(title, query))
       .sort((a, b) => b.rating - a.rating || b.year - a.year);
-  }, [activeGenre, liveCatalog, mediaFilter, query, titles]);
+  }, [liveCatalog, mediaFilter, query, titles]);
 
-  const backdropTitle = results[0] ?? titles[0];
+  const hasQuery = query.trim().length > 0;
+  const suggestions = useMemo(
+    () =>
+      [...titles]
+        .sort((a, b) => b.rating - a.rating || b.year - a.year)
+        .filter((title) => mediaFilter === "all" || title.mediaType === mediaFilter)
+        .slice(0, SUGGESTION_COUNT),
+    [mediaFilter, titles],
+  );
+  const shownTitles = hasQuery ? results : suggestions;
+
+  // Reset the keyboard cursor from the same handlers that change the
+  // visible set, so there's no derived-state-in-effect round trip.
+  const resetCursor = () => setActiveIndex(-1);
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    resetCursor();
+  };
+
+  const handleMediaFilter = (filter: MediaFilter) => {
+    setMediaFilter(filter);
+    resetCursor();
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (shownTitles.length === 0) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((index) => Math.min(index + 1, shownTitles.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((index) => Math.max(index - 1, 0));
+    } else if (event.key === "Enter" && activeIndex >= 0 && activeIndex < shownTitles.length) {
+      event.preventDefault();
+      setSelectedTitle(shownTitles[activeIndex]);
+    } else if (event.key === "Escape" && query) {
+      event.preventDefault();
+      handleQueryChange("");
+    }
+  };
 
   return (
     <>
-      <section className="relative overflow-hidden border-b border-white/[0.06] px-5 pb-8 pt-28 md:px-10 md:pt-32 lg:px-12">
-        {backdropTitle && (
-          <div className="absolute inset-0 opacity-[0.2]" aria-hidden="true">
-            <CatalogImage
-              src={backdropUrl(backdropTitle.backdropPath, "w1280")}
-              alt=""
-              sizes="100vw"
-              fallbackLabel={backdropTitle.name.charAt(0)}
-              className="scale-105 blur-[2px]"
-            />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/88 to-ink/62" />
+      <section className="relative min-h-[92svh] px-5 pt-28 md:px-10 md:pt-32 lg:px-12">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_80%_at_50%_0%,rgba(176,64,73,0.2),transparent_70%)]"
+        />
 
-        <div className="relative z-10 max-w-5xl">
-          <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-velvet-bright">
-            Projection index
-          </p>
-          <h1 className="mt-3 font-display text-5xl italic leading-none text-silver md:text-7xl">
-            Search Andshow
-          </h1>
+        <div className="mx-auto max-w-3xl">
+          <motion.div
+            className="text-center"
+            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: EASE_REEL }}
+          >
+            <p className="font-mono text-[11px] uppercase tracking-[0.34em] text-velvet-bright">
+              Projection index
+            </p>
+            <h1 className="mt-3 font-display text-4xl italic leading-none text-silver md:text-6xl">
+              What are you in the mood for?
+            </h1>
+          </motion.div>
 
-          <div className="mt-8 max-w-3xl">
-            <label className="relative block">
-              <span className="sr-only">Search titles</span>
+          <motion.div
+            className="mt-9"
+            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.08, ease: EASE_REEL }}
+          >
+            <div className="group relative">
               <Search
-                size={20}
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ash"
+                size={22}
+                className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-ash transition-colors group-focus-within:text-velvet-bright"
                 aria-hidden="true"
               />
               <input
+                ref={inputRef}
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Title, actor, genre, year..."
-                className="h-14 w-full rounded-full border border-white/10 bg-ink/72 px-12 text-[16px] text-silver shadow-2xl outline-none backdrop-blur transition-colors placeholder:text-ash/70 hover:border-white/20 focus:border-velvet-bright"
+                onChange={(event) => handleQueryChange(event.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Title, actor, genre, year…"
+                autoComplete="off"
+                spellCheck={false}
+                role="combobox"
+                aria-label="Search titles"
+                aria-expanded={hasQuery}
+                aria-controls="search-results"
+                className="h-16 w-full rounded-2xl border border-white/10 bg-graphite/50 px-14 text-[17px] text-silver shadow-[0_20px_60px_rgba(0,0,0,0.45)] outline-none backdrop-blur-2xl transition-all placeholder:text-ash/60 hover:border-white/20 focus:border-velvet-bright/70 focus:bg-graphite/70 focus:shadow-[0_0_0_4px_rgba(176,64,73,0.14),0_20px_60px_rgba(0,0,0,0.5)]"
               />
-              {query && (
+              {query ? (
                 <button
                   type="button"
-                  onClick={() => setQuery("")}
+                  onClick={() => {
+                    handleQueryChange("");
+                    inputRef.current?.focus();
+                  }}
                   aria-label="Clear search"
-                  className="absolute right-3 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full text-ash transition-colors hover:bg-white/5 hover:text-silver"
+                  className="absolute right-4 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full text-ash transition-colors hover:bg-white/5 hover:text-silver"
                 >
-                  <X size={16} aria-hidden="true" />
+                  <X size={17} aria-hidden="true" />
                 </button>
+              ) : (
+                <span className="pointer-events-none absolute right-5 top-1/2 hidden -translate-y-1/2 items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-ash/70 sm:flex">
+                  <CornerDownLeft size={12} aria-hidden="true" /> to open
+                </span>
               )}
-            </label>
-          </div>
-        </div>
-      </section>
-
-      <section className="sticky top-16 z-30 border-b border-white/[0.06] bg-ink/84 px-5 py-3 backdrop-blur-2xl md:top-[68px] md:px-10 lg:px-12">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="inline-flex w-fit rounded-full border border-white/10 bg-graphite/60 p-1">
-            {[
-              { key: "all", label: "All", icon: Search },
-              { key: "movie", label: "Movies", icon: Film },
-              { key: "tv", label: "TV", icon: Tv },
-            ].map((item) => {
-              const Icon = item.icon;
-              const isActive = mediaFilter === item.key;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => setMediaFilter(item.key as MediaFilter)}
-                  aria-pressed={isActive}
-                  className={`flex h-9 items-center gap-2 rounded-full px-4 text-[12px] transition-colors ${
-                    isActive ? "bg-silver text-ink" : "text-ash hover:text-silver"
-                  }`}
-                >
-                  <Icon size={14} aria-hidden="true" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="no-scrollbar flex gap-2 overflow-x-auto" aria-label="Genre filters">
-            {availableGenres.map((genre) => {
-              const isActive = genre === activeGenre;
-              return (
-                <button
-                  key={genre}
-                  type="button"
-                  onClick={() => setSelectedGenre(genre)}
-                  aria-pressed={isActive}
-                  className={`h-9 shrink-0 rounded-full border px-4 text-[12px] transition-colors ${
-                    isActive
-                      ? "border-velvet-bright bg-velvet/30 text-silver"
-                      : "border-white/10 text-ash hover:border-white/20 hover:text-silver"
-                  }`}
-                >
-                  {genre}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section className="px-5 py-9 md:px-10 lg:px-12" aria-labelledby="search-results-heading">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="font-mono text-[10.5px] uppercase tracking-[0.28em] text-ash">
-              {loading ? "Searching..." : `${results.length} results`}
-            </p>
-            <h2 id="search-results-heading" className="mt-1 text-xl font-medium text-silver">
-              {query.trim() ? `Matches for "${query.trim()}"` : "All catalog titles"}
-            </h2>
-          </div>
-        </div>
-
-        {results.length > 0 ? (
-          <ul className="grid grid-cols-2 gap-x-3.5 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {results.map((title) => (
-              <li key={`${title.mediaType}-${title.id}`} className="min-w-0">
-                <MovieCard title={title} onSelect={setSelectedTitle} variant="grid" />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="grid min-h-[280px] place-items-center border-y border-white/[0.06] text-center">
-            <div>
-              <p className="font-display text-3xl italic text-silver">Nothing in the reel.</p>
-              <p className="mt-2 text-sm text-ash">Try a title, actor, genre, or year.</p>
             </div>
+
+            <div className="mt-5 flex items-center justify-center">
+              <div className="inline-flex rounded-full border border-white/10 bg-graphite/50 p-1 backdrop-blur">
+                {MEDIA_TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = mediaFilter === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => handleMediaFilter(tab.key)}
+                      aria-pressed={isActive}
+                      className={`flex h-9 items-center gap-2 rounded-full px-4 text-[12.5px] transition-colors ${
+                        isActive ? "bg-silver text-ink" : "text-ash hover:text-silver"
+                      }`}
+                    >
+                      <Icon size={14} aria-hidden="true" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+
+          <div className="mt-9 flex items-center justify-between">
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.28em] text-ash">
+              {loading
+                ? "Searching…"
+                : hasQuery
+                  ? `${results.length} result${results.length === 1 ? "" : "s"}`
+                  : "Suggestions"}
+            </p>
+            {hasQuery && shownTitles.length > 0 && (
+              <p className="hidden font-mono text-[10px] uppercase tracking-[0.2em] text-ash/70 sm:block">
+                ↑ ↓ to move · ↵ to open
+              </p>
+            )}
           </div>
-        )}
+        </div>
+
+        <div className="mx-auto mt-5 max-w-6xl pb-16">
+          {shownTitles.length > 0 ? (
+            <motion.ul
+              id="search-results"
+              className="grid grid-cols-2 gap-x-3.5 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+              variants={staggerContainer(0.03)}
+              initial={prefersReducedMotion ? undefined : "hidden"}
+              animate="visible"
+            >
+              <AnimatePresence>
+                {shownTitles.map((title, index) => (
+                  <motion.li
+                    key={titleKey(title)}
+                    variants={fadeRise}
+                    transition={{ duration: 0.45, ease: EASE_REEL }}
+                    className={`min-w-0 rounded-xl transition-shadow ${
+                      index === activeIndex ? "ring-2 ring-velvet-bright ring-offset-2 ring-offset-ink" : ""
+                    }`}
+                  >
+                    <MovieCard title={title} onSelect={setSelectedTitle} variant="grid" />
+                  </motion.li>
+                ))}
+              </AnimatePresence>
+            </motion.ul>
+          ) : (
+            <div className="grid min-h-[240px] place-items-center text-center">
+              <div>
+                <p className="font-display text-3xl italic text-silver">Nothing in the reel.</p>
+                <p className="mt-2 text-sm text-ash">Try a title, actor, genre, or year.</p>
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
       <AnimatePresence>

@@ -71,13 +71,18 @@ export function Header() {
           >
             <Search size={17} strokeWidth={1.8} />
           </Link>
-          <button
-            type="button"
+          <Link
+            href="/profile"
             aria-label="Profile"
-            className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-graphite-light to-graphite font-mono text-[11px] text-ash ring-1 ring-white/10 transition-colors hover:text-silver"
+            aria-current={pathname === "/profile" ? "page" : undefined}
+            className={`grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-graphite-light to-graphite font-mono text-[11px] ring-1 transition-colors hover:text-silver ${
+              pathname === "/profile"
+                ? "text-silver ring-velvet-bright/60"
+                : "text-ash ring-white/10"
+            }`}
           >
             A
-          </button>
+          </Link>
           <button
             type="button"
             onClick={() => setIsMenuOpen((open) => !open)}

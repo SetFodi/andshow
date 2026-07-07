@@ -17,6 +17,7 @@
   --font-mono: var(--font-plex);
 
   --ease-reel: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-curtain: cubic-bezier(0.83, 0, 0.17, 1);
 }
 
 html {
@@ -79,8 +80,55 @@ body {
   );
 }
 
+/* Shimmer sweep for loading skeletons. */
+@keyframes andshow-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-graphite) 72%, transparent);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 0.05),
+    transparent
+  );
+  animation: andshow-shimmer 1.6s var(--ease-reel) infinite;
+}
+
+/* Soft breathing pulse for the preloader mark. */
+@keyframes andshow-flicker {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.projector-flicker {
+  animation: andshow-flicker 2.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  .skeleton::after,
+  .projector-flicker {
+    animation: none;
   }
 }

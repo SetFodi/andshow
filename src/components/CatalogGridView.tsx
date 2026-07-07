@@ -1,12 +1,14 @@
 "use client";
 
-import { AnimatePresence } from "framer-motion";
-import { ChevronDown, Clapperboard, Layers3, Loader2, SlidersHorizontal, Sparkles, Star } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { ChevronDown, Loader2, SlidersHorizontal } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogImage } from "@/components/CatalogImage";
 import { MovieCard } from "@/components/MovieCard";
 import { MovieDetailModal } from "@/components/MovieDetailModal";
 import type { CatalogScope } from "@/lib/catalog";
+import { EASE_REEL, fadeRise, staggerContainer } from "@/lib/motion";
+import { dedupeTitles, titleKey } from "@/lib/titles";
 import { backdropUrl } from "@/lib/tmdb-image";
 import type { Title } from "@/lib/types";
 
@@ -70,7 +72,8 @@ export function CatalogGridView({
   totalResults: initialTotalResults,
   genreOptions,
 }: CatalogGridViewProps) {
-  const [titles, setTitles] = useState<readonly Title[]>(initialTitles);
+  const prefersReducedMotion = useReducedMotion();
+  const [titles, setTitles] = useState<readonly Title[]>(() => dedupeTitles(initialTitles));
   const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [totalResults, setTotalResults] = useState(initialTotalResults ?? initialTitles.length);
@@ -78,9 +81,10 @@ export function CatalogGridView({
   const [sortKey, setSortKey] = useState<SortKey>("curated");
   const [selectedTitle, setSelectedTitle] = useState<Title | null>(null);
   const [loading, setLoading] = useState(false);
+  const inflightRequestRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setTitles(initialTitles);
+    setTitles(dedupeTitles(initialTitles));
     setPage(initialPage);
     setTotalPages(initialTotalPages);
     setTotalResults(initialTotalResults ?? initialTitles.length);
@@ -88,6 +92,10 @@ export function CatalogGridView({
 
   const fetchPage = useCallback(
     async (nextPage: number, genre: string, append: boolean) => {
+      const requestKey = `${nextPage}:${genre}`;
+      if (inflightRequestRef.current === requestKey) return;
+
+      inflightRequestRef.current = requestKey;
       setLoading(true);
       try {
         const params = new URLSearchParams({
@@ -106,12 +114,17 @@ export function CatalogGridView({
           totalResults: number;
         };
 
-        setTitles((current) => (append ? [...current, ...data.titles] : data.titles));
+        setTitles((current) =>
+          append ? dedupeTitles([...current, ...data.titles]) : dedupeTitles(data.titles),
+        );
         setPage(data.page);
         setTotalPages(data.totalPages);
         setTotalResults(data.totalResults);
       } finally {
         setLoading(false);
+        if (inflightRequestRef.current === requestKey) {
+          inflightRequestRef.current = null;
+        }
       }
     },
     [scope],
@@ -154,68 +167,65 @@ export function CatalogGridView({
   const shownCount = liveCatalog ? titles.length : visibleTitles.length;
   const catalogCount = liveCatalog ? totalResults : titles.length;
 
+  const metaParts = [
+    `${catalogCount} titles`,
+    movieCount > 0 ? `${movieCount} films` : null,
+    seriesCount > 0 ? `${seriesCount} series` : null,
+    `avg ${getAverageRating(titles)}`,
+  ].filter(Boolean) as string[];
+
   return (
     <>
-      <section className="relative overflow-hidden border-b border-white/[0.06] px-5 pb-10 pt-28 md:px-10 md:pt-32 lg:px-12">
+      <section className="relative overflow-hidden px-5 pb-9 pt-28 md:px-10 md:pt-36 lg:px-12">
         {spotlight && (
-          <div className="absolute inset-0 opacity-[0.28]" aria-hidden="true">
-            <CatalogImage
-              src={backdropUrl(spotlight.backdropPath, "w1280")}
-              alt=""
-              sizes="100vw"
-              fallbackLabel={spotlight.name.charAt(0)}
-              className="scale-105 blur-[1px]"
-            />
+          <div className="absolute inset-0 -z-10" aria-hidden="true">
+            <div className="absolute inset-0 opacity-[0.22]">
+              <CatalogImage
+                src={backdropUrl(spotlight.backdropPath, "w1280")}
+                alt=""
+                sizes="100vw"
+                fallbackLabel={spotlight.name.charAt(0)}
+                className="scale-110 blur-[2px]"
+              />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/85 to-ink/45" />
+            <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/60 to-transparent" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/82 to-ink/50" />
-        <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/70 to-transparent" />
 
-        <div className="relative z-10 max-w-6xl">
-          <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-velvet-bright">
+        <motion.div
+          className="max-w-3xl"
+          initial={prefersReducedMotion ? undefined : { opacity: 0, y: 22 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, ease: EASE_REEL }}
+        >
+          <p className="font-mono text-[11px] uppercase tracking-[0.34em] text-velvet-bright">
             {eyebrow}
           </p>
-          <h1 className="mt-3 max-w-3xl font-display text-5xl italic leading-none text-silver md:text-7xl">
+          <h1 className="mt-4 font-display text-6xl italic leading-[0.92] tracking-[-0.015em] text-silver md:text-8xl">
             {heading}
           </h1>
-          <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-ash md:text-base">
+          <p className="mt-6 max-w-2xl text-[15px] leading-relaxed text-ash md:text-base">
             {description}
           </p>
-
-          <dl className="mt-8 grid max-w-4xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.06] sm:grid-cols-4">
-            {[
-              { label: "Titles", value: String(catalogCount), icon: Clapperboard },
-              { label: "Average", value: getAverageRating(titles), icon: Star },
-              { label: "Genres", value: String(genres.length - 1), icon: Layers3 },
-              {
-                label: seriesCount > 0 && movieCount > 0 ? "Movies / TV" : "Mode",
-                value:
-                  seriesCount > 0 && movieCount > 0
-                    ? `${movieCount} / ${seriesCount}`
-                    : movieCount > 0
-                      ? "Films"
-                      : "Series",
-                icon: Sparkles,
-              },
-            ].map((stat) => {
-              const Icon = stat.icon;
-              return (
-                <div key={stat.label} className="bg-ink/55 px-4 py-4 backdrop-blur">
-                  <dt className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-ash">
-                    <Icon size={13} aria-hidden="true" />
-                    {stat.label}
-                  </dt>
-                  <dd className="mt-2 text-2xl font-medium text-silver">{stat.value}</dd>
-                </div>
-              );
-            })}
-          </dl>
-        </div>
+          <p className="mt-7 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-[0.2em] text-ash">
+            {metaParts.map((part, index) => (
+              <span key={part} className="flex items-center gap-x-3">
+                {index > 0 && (
+                  <span className="text-white/25" aria-hidden="true">
+                    ·
+                  </span>
+                )}
+                {part}
+              </span>
+            ))}
+          </p>
+        </motion.div>
       </section>
 
       <section
         aria-label="Catalog controls"
-        className="sticky top-16 z-30 border-y border-white/[0.06] bg-ink/82 px-5 py-3 backdrop-blur-2xl md:top-[68px] md:px-10 lg:px-12"
+        className="sticky top-16 z-30 border-y border-white/[0.06] bg-ink/80 px-5 py-3 backdrop-blur-2xl md:top-[68px] md:px-10 lg:px-12"
       >
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="no-scrollbar flex gap-2 overflow-x-auto" role="list" aria-label="Genres">
@@ -228,10 +238,10 @@ export function CatalogGridView({
                   onClick={() => handleGenreChange(genre)}
                   aria-pressed={isActive}
                   disabled={loading}
-                  className={`h-9 shrink-0 rounded-full border px-4 text-[12px] transition-colors ${
+                  className={`h-9 shrink-0 rounded-full border px-4 text-[12px] tracking-wide transition-colors disabled:opacity-60 ${
                     isActive
-                      ? "border-velvet-bright bg-velvet/30 text-silver"
-                      : "border-white/10 text-ash hover:border-white/20 hover:text-silver"
+                      ? "border-velvet-bright/70 bg-velvet/25 text-silver"
+                      : "border-white/10 text-ash hover:border-white/25 hover:text-silver"
                   }`}
                 >
                   {genre}
@@ -240,7 +250,7 @@ export function CatalogGridView({
             })}
           </div>
 
-          <label className="relative block w-full max-w-xs text-ash xl:w-[230px]">
+          <label className="relative block w-full max-w-xs text-ash xl:w-[220px]">
             <span className="sr-only">Sort catalog</span>
             <SlidersHorizontal
               size={15}
@@ -250,7 +260,7 @@ export function CatalogGridView({
             <select
               value={sortKey}
               onChange={(event) => setSortKey(event.target.value as SortKey)}
-              className="h-10 w-full appearance-none rounded-full border border-white/10 bg-graphite/80 px-9 text-[13px] text-silver outline-none transition-colors hover:border-white/20 focus:border-velvet-bright"
+              className="h-10 w-full appearance-none rounded-full border border-white/10 bg-graphite/80 px-9 text-[13px] text-silver outline-none transition-colors hover:border-white/25 focus:border-velvet-bright"
             >
               {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
                 <option key={key} value={key}>
@@ -268,7 +278,7 @@ export function CatalogGridView({
       </section>
 
       <section className="px-5 py-9 md:px-10 lg:px-12" aria-labelledby="catalog-results-heading">
-        <div className="mb-5 flex items-end justify-between gap-5">
+        <div className="mb-6 flex items-end justify-between gap-5">
           <div>
             <p className="font-mono text-[10.5px] uppercase tracking-[0.28em] text-ash">
               {shownCount} of {catalogCount} shown
@@ -283,13 +293,23 @@ export function CatalogGridView({
         </div>
 
         {visibleTitles.length > 0 ? (
-          <ul className="grid grid-cols-2 gap-x-3.5 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          <motion.ul
+            className="grid grid-cols-2 gap-x-3.5 gap-y-9 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+            variants={staggerContainer(0.035)}
+            initial={prefersReducedMotion ? undefined : "hidden"}
+            animate="visible"
+          >
             {visibleTitles.map((title) => (
-              <li key={`${title.mediaType}-${title.id}`} className="min-w-0">
+              <motion.li
+                key={titleKey(title)}
+                variants={fadeRise}
+                transition={{ duration: 0.5, ease: EASE_REEL }}
+                className="min-w-0"
+              >
                 <MovieCard title={title} onSelect={setSelectedTitle} variant="grid" />
-              </li>
+              </motion.li>
             ))}
-          </ul>
+          </motion.ul>
         ) : (
           <div className="grid min-h-[280px] place-items-center border-y border-white/[0.06] text-center">
             <div>
@@ -300,12 +320,12 @@ export function CatalogGridView({
         )}
 
         {liveCatalog && page < totalPages && (
-          <div className="mt-10 flex justify-center">
+          <div className="mt-12 flex justify-center">
             <button
               type="button"
               onClick={handleLoadMore}
               disabled={loading}
-              className="inline-flex h-11 items-center gap-2 rounded-full border border-white/10 px-6 text-[13px] text-silver transition-colors hover:border-white/20 disabled:opacity-60"
+              className="inline-flex h-11 items-center gap-2 rounded-full border border-white/10 px-6 text-[13px] text-silver transition-colors hover:border-white/25 disabled:opacity-60"
             >
               {loading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
               Load more

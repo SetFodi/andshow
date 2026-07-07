@@ -66,22 +66,28 @@ export interface TmdbTvDetails extends TmdbTvSummary {
 }
 
 export function isTmdbConfigured(): boolean {
-  return Boolean(process.env.TMDB_API_KEY?.trim());
+  return Boolean(process.env.TMDB_API_KEY?.trim() || process.env.TMDB_READ_ACCESS_TOKEN?.trim());
 }
 
 async function tmdbFetch<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
   const apiKey = process.env.TMDB_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error("TMDB_API_KEY is not configured");
+  const readToken = process.env.TMDB_READ_ACCESS_TOKEN?.trim();
+  if (!apiKey && !readToken) {
+    throw new Error("TMDB_API_KEY or TMDB_READ_ACCESS_TOKEN is not configured");
   }
 
   const url = new URL(`${TMDB_BASE_URL}${path}`);
-  url.searchParams.set("api_key", apiKey);
+  if (apiKey) {
+    url.searchParams.set("api_key", apiKey);
+  }
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, String(value));
   }
 
-  const response = await fetch(url, { next: { revalidate: 3600 } });
+  const response = await fetch(url, {
+    headers: readToken ? { Authorization: `Bearer ${readToken}` } : {},
+    next: { revalidate: 3600 },
+  });
   if (!response.ok) {
     throw new Error(`TMDB request failed (${response.status}) for ${path}`);
   }
