@@ -132,6 +132,26 @@ describe("mapMovieDetails", () => {
     expect(title.runtimeLabel).toBe("2h 28m");
     expect(title.cast).toEqual(["Leonardo DiCaprio", "Joseph Gordon-Levitt"]);
   });
+
+  test("maps detail-only genre objects when genre_ids are absent", () => {
+    const details: TmdbMovieDetails = {
+      id: 157336,
+      title: "Interstellar",
+      overview: "Space and time.",
+      poster_path: "/interstellar.jpg",
+      backdrop_path: "/interstellar-backdrop.jpg",
+      release_date: "2014-11-05",
+      vote_average: 8.5,
+      genres: [
+        { id: 12, name: "Adventure" },
+        { id: 18, name: "Drama" },
+      ],
+      runtime: 169,
+    };
+
+    const title = mapMovieDetails(details, new Map([[12, "Adventure"]]));
+    expect(title.genres).toEqual(["Adventure", "Drama"]);
+  });
 });
 
 describe("mapTvDetails", () => {
@@ -148,6 +168,25 @@ describe("mapTvDetails", () => {
     expect(title.yearLabel).toBe("2008–2013");
     expect(title.runtimeLabel).toBe("5 Seasons");
     expect(title.cast).toEqual(["Bryan Cranston"]);
+  });
+
+  test("falls back to detail genre names when the map has no match", () => {
+    const details: TmdbTvDetails = {
+      id: 95396,
+      name: "Severance",
+      overview: "Work-life balance gets strange.",
+      poster_path: "/severance.jpg",
+      backdrop_path: "/severance-backdrop.jpg",
+      first_air_date: "2022-02-17",
+      vote_average: 8.4,
+      genres: [{ id: 9648, name: "Mystery" }],
+      number_of_seasons: 2,
+      status: "Returning Series",
+      last_air_date: "2025-03-20",
+    };
+
+    const title = mapTvDetails(details, new Map());
+    expect(title.genres).toEqual(["Mystery"]);
   });
 });
 

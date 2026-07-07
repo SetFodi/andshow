@@ -1,5 +1,6 @@
 import type {
   TmdbCastMember,
+  TmdbGenre,
   TmdbMovieDetails,
   TmdbMovieSummary,
   TmdbMultiResult,
@@ -19,8 +20,20 @@ function roundRating(value: number | undefined): number {
   return Math.round(value * 10) / 10;
 }
 
-function mapGenres(genreIds: readonly number[], genreMap: Map<number, string>): string[] {
-  return genreIds.map((id) => genreMap.get(id)).filter((name): name is string => Boolean(name));
+interface TmdbGenreSource {
+  genre_ids?: readonly number[];
+  genres?: readonly TmdbGenre[];
+}
+
+function mapGenres(item: TmdbGenreSource, genreMap: Map<number, string>): string[] {
+  const detailNamesById = new Map((item.genres ?? []).map((genre) => [genre.id, genre.name]));
+  const ids = item.genre_ids ?? item.genres?.map((genre) => genre.id) ?? [];
+  const mappedNames = ids
+    .map((id) => genreMap.get(id) ?? detailNamesById.get(id))
+    .filter((name): name is string => Boolean(name));
+
+  if (mappedNames.length > 0) return mappedNames;
+  return [...(item.genres ?? [])].map((genre) => genre.name).filter(Boolean);
 }
 
 function mapCast(cast: readonly TmdbCastMember[] | undefined, limit = 4): string[] {
@@ -68,7 +81,7 @@ export function mapMovieSummary(item: TmdbMovieSummary, genreMap: Map<number, st
     yearLabel: year ? String(year) : "—",
     runtimeLabel: "—",
     rating: roundRating(item.vote_average),
-    genres: mapGenres(item.genre_ids, genreMap),
+    genres: mapGenres(item, genreMap),
     overview: item.overview,
     cast: [],
     posterPath: item.poster_path ?? "",
@@ -86,7 +99,7 @@ export function mapTvSummary(item: TmdbTvSummary, genreMap: Map<number, string>)
     yearLabel: year ? `${year}–` : "—",
     runtimeLabel: "Series",
     rating: roundRating(item.vote_average),
-    genres: mapGenres(item.genre_ids, genreMap),
+    genres: mapGenres(item, genreMap),
     overview: item.overview,
     cast: [],
     posterPath: item.poster_path ?? "",

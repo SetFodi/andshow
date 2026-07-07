@@ -25,6 +25,15 @@ const MEDIA_TABS: { key: MediaFilter; label: string; icon: typeof Search }[] = [
 const SUGGESTION_COUNT = 10;
 const DEBOUNCE_MS = 300;
 
+interface SearchTitleState {
+  sourceKey: string;
+  titles: readonly Title[];
+}
+
+function getSourceKey(titles: readonly Title[]): string {
+  return titles.map(titleKey).join(",");
+}
+
 function includesQuery(title: Title, query: string): boolean {
   const needle = query.trim().toLocaleLowerCase();
   if (!needle) return true;
@@ -49,17 +58,22 @@ export function CatalogSearchView({
   liveCatalog = false,
 }: CatalogSearchViewProps) {
   const prefersReducedMotion = useReducedMotion();
-  const [titles, setTitles] = useState<readonly Title[]>(() => dedupeTitles(initialTitles));
+  const sourceKey = useMemo(() => getSourceKey(initialTitles), [initialTitles]);
+  const initialTitleState = useMemo<SearchTitleState>(
+    () => ({
+      sourceKey,
+      titles: dedupeTitles(initialTitles),
+    }),
+    [initialTitles, sourceKey],
+  );
+  const [titleState, setTitleState] = useState<SearchTitleState>(() => initialTitleState);
   const [query, setQuery] = useState("");
   const [mediaFilter, setMediaFilter] = useState<MediaFilter>("all");
   const [selectedTitle, setSelectedTitle] = useState<Title | null>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setTitles(dedupeTitles(initialTitles));
-  }, [initialTitles]);
+  const titles = titleState.sourceKey === sourceKey ? titleState.titles : initialTitleState.titles;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -80,14 +94,14 @@ export function CatalogSearchView({
         if (!response.ok) throw new Error("Search fetch failed");
 
         const data = (await response.json()) as { titles: Title[] };
-        setTitles(dedupeTitles(data.titles));
+        setTitleState({ sourceKey, titles: dedupeTitles(data.titles) });
       } finally {
         setLoading(false);
       }
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(handle);
-  }, [liveCatalog, mediaFilter, query]);
+  }, [liveCatalog, mediaFilter, query, sourceKey]);
 
   const results = useMemo(() => {
     return titles

@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, Loader2, SlidersHorizontal } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { CatalogImage } from "@/components/CatalogImage";
 import { MovieCard } from "@/components/MovieCard";
 import { MovieDetailModal } from "@/components/MovieDetailModal";
@@ -25,6 +25,14 @@ interface CatalogGridViewProps {
   totalPages?: number;
   totalResults?: number;
   genreOptions?: readonly string[];
+}
+
+interface CatalogState {
+  sourceKey: string;
+  titles: readonly Title[];
+  page: number;
+  totalPages: number;
+  totalResults: number;
 }
 
 const ALL_GENRES = "All";
@@ -60,6 +68,22 @@ function getAverageRating(titles: readonly Title[]): string {
   return (total / titles.length).toFixed(1);
 }
 
+function getSourceKey(
+  scope: CatalogScope,
+  titles: readonly Title[],
+  page: number,
+  totalPages: number,
+  totalResults: number | undefined,
+): string {
+  return [
+    scope,
+    page,
+    totalPages,
+    totalResults ?? titles.length,
+    titles.map(titleKey).join(","),
+  ].join("|");
+}
+
 export function CatalogGridView({
   eyebrow,
   heading,
@@ -73,22 +97,30 @@ export function CatalogGridView({
   genreOptions,
 }: CatalogGridViewProps) {
   const prefersReducedMotion = useReducedMotion();
-  const [titles, setTitles] = useState<readonly Title[]>(() => dedupeTitles(initialTitles));
-  const [page, setPage] = useState(initialPage);
-  const [totalPages, setTotalPages] = useState(initialTotalPages);
-  const [totalResults, setTotalResults] = useState(initialTotalResults ?? initialTitles.length);
+  const sourceKey = useMemo(
+    () => getSourceKey(scope, initialTitles, initialPage, initialTotalPages, initialTotalResults),
+    [initialPage, initialTitles, initialTotalPages, initialTotalResults, scope],
+  );
+  const initialCatalogState = useMemo<CatalogState>(
+    () => ({
+      sourceKey,
+      titles: dedupeTitles(initialTitles),
+      page: initialPage,
+      totalPages: initialTotalPages,
+      totalResults: initialTotalResults ?? initialTitles.length,
+    }),
+    [initialPage, initialTitles, initialTotalPages, initialTotalResults, sourceKey],
+  );
+  const [catalogState, setCatalogState] = useState<CatalogState>(() => initialCatalogState);
   const [selectedGenre, setSelectedGenre] = useState(ALL_GENRES);
   const [sortKey, setSortKey] = useState<SortKey>("curated");
   const [selectedTitle, setSelectedTitle] = useState<Title | null>(null);
   const [loading, setLoading] = useState(false);
   const inflightRequestRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    setTitles(dedupeTitles(initialTitles));
-    setPage(initialPage);
-    setTotalPages(initialTotalPages);
-    setTotalResults(initialTotalResults ?? initialTitles.length);
-  }, [initialTitles, initialPage, initialTotalPages, initialTotalResults]);
+  const activeCatalogState =
+    catalogState.sourceKey === sourceKey ? catalogState : initialCatalogState;
+  const { titles, page, totalPages, totalResults } = activeCatalogState;
 
   const fetchPage = useCallback(
     async (nextPage: number, genre: string, append: boolean) => {
@@ -114,12 +146,20 @@ export function CatalogGridView({
           totalResults: number;
         };
 
-        setTitles((current) =>
-          append ? dedupeTitles([...current, ...data.titles]) : dedupeTitles(data.titles),
-        );
-        setPage(data.page);
-        setTotalPages(data.totalPages);
-        setTotalResults(data.totalResults);
+        setCatalogState((current) => {
+          const currentTitles =
+            current.sourceKey === sourceKey ? current.titles : initialCatalogState.titles;
+
+          return {
+            sourceKey,
+            titles: append
+              ? dedupeTitles([...currentTitles, ...data.titles])
+              : dedupeTitles(data.titles),
+            page: data.page,
+            totalPages: data.totalPages,
+            totalResults: data.totalResults,
+          };
+        });
       } finally {
         setLoading(false);
         if (inflightRequestRef.current === requestKey) {
@@ -127,7 +167,7 @@ export function CatalogGridView({
         }
       }
     },
-    [scope],
+    [initialCatalogState.titles, scope, sourceKey],
   );
 
   const handleGenreChange = (genre: string) => {

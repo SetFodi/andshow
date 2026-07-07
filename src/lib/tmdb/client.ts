@@ -20,7 +20,8 @@ export interface TmdbMovieSummary {
   backdrop_path: string | null;
   release_date: string;
   vote_average: number;
-  genre_ids: number[];
+  genre_ids?: number[];
+  genres?: TmdbGenre[];
 }
 
 export interface TmdbTvSummary {
@@ -31,7 +32,8 @@ export interface TmdbTvSummary {
   backdrop_path: string | null;
   first_air_date: string;
   vote_average: number;
-  genre_ids: number[];
+  genre_ids?: number[];
+  genres?: TmdbGenre[];
 }
 
 export interface TmdbMultiResult {
