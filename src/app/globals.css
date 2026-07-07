@@ -1,26 +1,86 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* The auditorium palette: projection-room darks, silver-screen light,
+     velvet-curtain red. Deliberately not Netflix red/black. */
+  --color-ink: #0b0b0e;
+  --color-ink-raised: #121217;
+  --color-graphite: #191920;
+  --color-graphite-light: #23232c;
+  --color-silver: #eae7e0;
+  --color-ash: #96929b;
+  --color-velvet: #b04049;
+  --color-velvet-bright: #dd6a71;
+
+  --font-sans: var(--font-instrument);
+  --font-display: var(--font-bodoni);
+  --font-mono: var(--font-plex);
+
+  --ease-reel: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ink);
+  color: var(--color-silver);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-velvet) 45%, transparent);
+  color: var(--color-silver);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-velvet-bright);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Frosted panel used by nav, hover cards, and drawer buttons. */
+.glass {
+  background: color-mix(in srgb, var(--color-graphite) 62%, transparent);
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  border: 1px solid rgb(255 255 255 / 0.08);
+}
+
+/* Projection grain: one fixed noise layer over the whole auditorium. */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Fades rail edges so posters slip out of frame instead of clipping. */
+.rail-mask {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 1.5rem,
+    black calc(100% - 3.5rem),
+    transparent 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
