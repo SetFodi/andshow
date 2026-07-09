@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { WatchPage } from "@/components/WatchPage";
 import { getTitleById } from "@/lib/catalog";
 import { getWatchSources } from "@/lib/player";
+import { getTvSeason } from "@/lib/tmdb/client";
+import { getWatchPath } from "@/lib/watch-path";
 
 interface WatchTvPageProps {
   params: Promise<{ id: string; season: string; episode: string }>;
@@ -47,6 +49,22 @@ export default async function WatchTvPage({ params }: WatchTvPageProps) {
   } as const;
   const sources = getWatchSources(target);
 
+  const seasonDetails = await getTvSeason(title.id, seasonNumber);
+  const episodeCount = seasonDetails?.episodes?.length ?? 0;
+  let nextHref: string | null = null;
+  let nextLabel: string | null = null;
+
+  if (episodeCount > 0 && episodeNumber < episodeCount) {
+    nextHref = getWatchPath(title, { season: seasonNumber, episode: episodeNumber + 1 });
+    nextLabel = `Season ${seasonNumber} · Episode ${episodeNumber + 1}`;
+  } else {
+    const nextSeason = await getTvSeason(title.id, seasonNumber + 1);
+    if (nextSeason?.episodes?.length) {
+      nextHref = getWatchPath(title, { season: seasonNumber + 1, episode: 1 });
+      nextLabel = `Season ${seasonNumber + 1} · Episode 1`;
+    }
+  }
+
   return (
     <WatchPage
       title={title}
@@ -54,6 +72,8 @@ export default async function WatchTvPage({ params }: WatchTvPageProps) {
       episodeLabel={`Season ${seasonNumber} · Episode ${episodeNumber}`}
       season={seasonNumber}
       episode={episodeNumber}
+      nextHref={nextHref}
+      nextLabel={nextLabel}
     />
   );
 }

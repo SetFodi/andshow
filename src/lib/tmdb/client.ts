@@ -60,10 +60,32 @@ export interface TmdbMovieDetails extends TmdbMovieSummary {
   credits?: { cast: TmdbCastMember[] };
 }
 
+export interface TmdbSeasonSummary {
+  season_number: number;
+  name: string;
+  episode_count: number;
+  air_date: string | null;
+}
+
+export interface TmdbEpisodeSummary {
+  episode_number: number;
+  name: string;
+  overview: string;
+  still_path: string | null;
+  runtime: number | null;
+}
+
+export interface TmdbSeasonDetails {
+  season_number: number;
+  name: string;
+  episodes: TmdbEpisodeSummary[];
+}
+
 export interface TmdbTvDetails extends TmdbTvSummary {
   number_of_seasons: number;
   status: string;
   last_air_date: string;
+  seasons?: TmdbSeasonSummary[];
   credits?: { cast: TmdbCastMember[] };
 }
 
@@ -193,6 +215,17 @@ export async function getMovieDetails(id: number): Promise<TmdbMovieDetails | nu
 export async function getTvDetails(id: number): Promise<TmdbTvDetails | null> {
   try {
     return await tmdbFetch(`/tv/${id}`, { append_to_response: "credits" });
+  } catch {
+    return null;
+  }
+}
+
+export async function getTvSeason(
+  id: number,
+  season: number,
+): Promise<TmdbSeasonDetails | null> {
+  try {
+    return await tmdbFetch(`/tv/${id}/season/${season}`);
   } catch {
     return null;
   }

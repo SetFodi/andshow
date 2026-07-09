@@ -32,8 +32,8 @@ describe("MovieRail", () => {
     render(<MovieRail rail={wideRail} onSelect={vi.fn()} />);
 
     // Assert
-    const resumeButtons = screen.getAllByRole("button", { name: /^Resume / });
-    expect(resumeButtons).toHaveLength(wideRail.items.length);
+    const resumeLinks = screen.getAllByRole("link", { name: /^Resume / });
+    expect(resumeLinks).toHaveLength(wideRail.items.length);
     expect(screen.getByText(wideRail.items[0].remainingLabel!)).toBeInTheDocument();
   });
 

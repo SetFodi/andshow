@@ -72,6 +72,9 @@ export function CatalogSearchView({
   const [selectedTitle, setSelectedTitle] = useState<Title | null>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
   const titles = titleState.sourceKey === sourceKey ? titleState.titles : initialTitleState.titles;
 
@@ -85,6 +88,7 @@ export function CatalogSearchView({
     const trimmed = query.trim();
     const handle = window.setTimeout(async () => {
       setLoading(true);
+      setError(null);
       try {
         const params = new URLSearchParams({ scope: "search", page: "1" });
         if (trimmed) params.set("query", trimmed);
@@ -93,8 +97,16 @@ export function CatalogSearchView({
         const response = await fetch(`/api/catalog?${params.toString()}`);
         if (!response.ok) throw new Error("Search fetch failed");
 
-        const data = (await response.json()) as { titles: Title[] };
+        const data = (await response.json()) as {
+          titles: Title[];
+          page: number;
+          totalPages: number;
+        };
         setTitleState({ sourceKey, titles: dedupeTitles(data.titles) });
+        setPage(data.page ?? 1);
+        setTotalPages(data.totalPages ?? 1);
+      } catch {
+        setError("Search failed. Try again in a moment.");
       } finally {
         setLoading(false);
       }
@@ -102,6 +114,40 @@ export function CatalogSearchView({
 
     return () => window.clearTimeout(handle);
   }, [liveCatalog, mediaFilter, query, sourceKey]);
+
+  const handleLoadMore = async () => {
+    if (!liveCatalog || loading || page >= totalPages) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        scope: "search",
+        page: String(page + 1),
+      });
+      const trimmed = query.trim();
+      if (trimmed) params.set("query", trimmed);
+      if (mediaFilter !== "all") params.set("mediaType", mediaFilter);
+
+      const response = await fetch(`/api/catalog?${params.toString()}`);
+      if (!response.ok) throw new Error("Search fetch failed");
+
+      const data = (await response.json()) as {
+        titles: Title[];
+        page: number;
+        totalPages: number;
+      };
+      setTitleState((current) => ({
+        sourceKey,
+        titles: dedupeTitles([...current.titles, ...data.titles]),
+      }));
+      setPage(data.page);
+      setTotalPages(data.totalPages);
+    } catch {
+      setError("Could not load more results.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const results = useMemo(() => {
     return titles
@@ -295,6 +341,25 @@ export function CatalogSearchView({
           )}
         </div>
       </section>
+
+      {error && (
+        <div className="px-5 pb-4 text-center md:px-10 lg:px-12">
+          <p className="text-sm text-ash">{error}</p>
+        </div>
+      )}
+
+      {liveCatalog && page < totalPages && (
+        <div className="flex justify-center px-5 pb-10 md:px-10 lg:px-12">
+          <button
+            type="button"
+            onClick={() => void handleLoadMore()}
+            disabled={loading}
+            className="inline-flex h-11 items-center gap-2 rounded-full border border-white/10 px-6 text-[13px] text-silver transition-colors hover:border-white/20 disabled:opacity-60"
+          >
+            {loading ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
 
       <AnimatePresence>
         {selectedTitle && (

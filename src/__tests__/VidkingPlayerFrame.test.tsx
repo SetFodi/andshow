@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { VidkingPlayerFrame } from "@/components/VidkingPlayerFrame";
 
@@ -57,6 +58,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
 });
+
 
 describe("VidkingPlayerFrame", () => {
   test("renders the iframe and diagnostic controls", () => {

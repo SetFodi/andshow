@@ -44,6 +44,8 @@ export interface RailItem {
   title: Title
   progress?: number
   remainingLabel?: string
+  season?: number
+  episode?: number
 }
 
 export interface Rail {

@@ -299,28 +299,12 @@ function buildMockHomeRails(): readonly Rail[] {
 }
 
 async function buildContinueWatchingRail(): Promise<Rail> {
-  const definition = RAIL_DEFINITIONS.find((rail) => rail.id === "continue-watching");
-  if (!definition) {
-    throw new Error("Catalog integrity error: continue-watching rail missing");
-  }
-
-  const items: RailItem[] = [];
-  for (const id of definition.ids) {
-    const progress = progressByTitleId.get(id);
-    const title = await getTitleById(id);
-    if (!title || !progress) continue;
-    items.push({
-      title,
-      progress: progress.progress,
-      remainingLabel: progress.remainingLabel,
-    });
-  }
-
+  // Continue Watching is client-owned (localStorage). Server returns an empty rail.
   return {
-    id: definition.id,
-    heading: definition.heading,
-    layout: definition.layout,
-    items,
+    id: "continue-watching",
+    heading: "Continue Watching",
+    layout: "wide",
+    items: [],
   };
 }
 

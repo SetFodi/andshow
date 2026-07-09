@@ -67,7 +67,10 @@ export function Header() {
           <Link
             href="/search"
             aria-label="Search"
-            className="grid h-9 w-9 place-items-center rounded-full text-ash transition-colors hover:bg-white/5 hover:text-silver"
+            aria-current={pathname === "/search" ? "page" : undefined}
+            className={`grid h-9 w-9 place-items-center rounded-full transition-colors hover:bg-white/5 ${
+              pathname === "/search" ? "bg-white/5 text-silver" : "text-ash hover:text-silver"
+            }`}
           >
             <Search size={17} strokeWidth={1.8} />
           </Link>
@@ -113,6 +116,18 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
+            <Link
+              href="/search"
+              onClick={() => setIsMenuOpen(false)}
+              aria-current={pathname === "/search" ? "page" : undefined}
+              className={`block rounded-xl px-4 py-3 text-[15px] transition-colors ${
+                pathname === "/search"
+                  ? "bg-white/5 text-silver"
+                  : "text-ash hover:bg-white/5 hover:text-silver"
+              }`}
+            >
+              Search
+            </Link>
           </div>
         </nav>
       )}

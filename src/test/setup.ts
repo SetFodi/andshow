@@ -48,3 +48,53 @@ Object.defineProperty(window, "IntersectionObserver", {
 
 // jsdom lacks Element.scrollBy (used by MovieRail chevrons).
 Element.prototype.scrollBy = Element.prototype.scrollBy ?? (() => undefined);
+
+
+const memoryStore = new Map<string, string>();
+const localStorageMock = {
+  getItem: (key: string) => memoryStore.get(key) ?? null,
+  setItem: (key: string, value: string) => {
+    memoryStore.set(key, String(value));
+  },
+  removeItem: (key: string) => {
+    memoryStore.delete(key);
+  },
+  clear: () => {
+    memoryStore.clear();
+  },
+  key: (index: number) => [...memoryStore.keys()][index] ?? null,
+  get length() {
+    return memoryStore.size;
+  },
+};
+Object.defineProperty(window, "localStorage", {
+  configurable: true,
+  writable: true,
+  value: localStorageMock,
+});
+
+vi.stubGlobal(
+  "fetch",
+  vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("/api/title/")) {
+      return {
+        ok: true,
+        json: async () => ({ title: null, seasons: [] }),
+      } as Response;
+    }
+    if (url.includes("/api/catalog")) {
+      return {
+        ok: true,
+        json: async () => ({
+          titles: [],
+          page: 1,
+          totalPages: 1,
+          totalResults: 0,
+          liveCatalog: false,
+        }),
+      } as Response;
+    }
+    return { ok: false, json: async () => ({}) } as Response;
+  }),
+);

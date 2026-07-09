@@ -69,9 +69,9 @@ export function MovieRail({ rail, onSelect }: MovieRailProps) {
       >
         {rail.items.map((item) =>
           rail.layout === "wide" ? (
-            <ContinueCard key={item.title.id} item={item} onSelect={onSelect} />
+            <ContinueCard key={`${item.title.mediaType}-${item.title.id}`} item={item} />
           ) : (
-            <MovieCard key={item.title.id} title={item.title} onSelect={onSelect} />
+            <MovieCard key={`${item.title.mediaType}-${item.title.id}`} title={item.title} onSelect={onSelect} />
           ),
         )}
       </div>

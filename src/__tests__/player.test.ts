@@ -36,7 +36,7 @@ describe("getWatchPath", () => {
 describe("getVidsrcPlayerUrl", () => {
   test("returns Vidsrc movie embed URLs with autoplay", () => {
     expect(getVidsrcPlayerUrl({ mediaType: "movie", id: movie.id })).toBe(
-      `https://vidsrc-embed.ru/embed/movie/${movie.id}?autoplay=1`,
+      `https://vidsrcme.su/embed/movie/${movie.id}?autoplay=1`,
     );
   });
 
@@ -49,7 +49,7 @@ describe("getVidsrcPlayerUrl", () => {
         episode: 7,
       }),
     ).toBe(
-      `https://vidsrc-embed.ru/embed/tv/${series.id}/2-7?autoplay=1&autonext=1`,
+      `https://vidsrcme.su/embed/tv/${series.id}/2-7?autoplay=1&autonext=1`,
     );
   });
 });
@@ -131,7 +131,7 @@ describe("getWatchSources", () => {
         label: "Vidsrc",
         detail: "Embed",
         kind: "iframe",
-        url: `https://vidsrc-embed.ru/embed/movie/${movie.id}?autoplay=1`,
+        url: `https://vidsrcme.su/embed/movie/${movie.id}?autoplay=1`,
       },
       {
         id: "vidking",

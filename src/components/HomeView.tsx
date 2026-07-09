@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AmbientBackdrop } from "@/components/AmbientBackdrop";
 import { Hero } from "@/components/Hero";
 import { MovieDetailModal } from "@/components/MovieDetailModal";
+import { HomeContinueRail } from "@/components/HomeContinueRail";
 import { MovieRail } from "@/components/MovieRail";
 import type { Rail, Title } from "@/lib/types";
 
@@ -56,9 +57,12 @@ export function HomeView({ featured, rails }: HomeViewProps) {
         onHoverChange={setIsHeroHovered}
       />
       <div className="relative z-10 -mt-4 space-y-12 pb-4 md:space-y-14">
-        {rails.map((rail) => (
-          <MovieRail key={rail.id} rail={rail} onSelect={setSelectedTitle} />
-        ))}
+        <HomeContinueRail onSelect={setSelectedTitle} />
+        {rails
+          .filter((rail) => rail.id !== "continue-watching")
+          .map((rail) => (
+            <MovieRail key={rail.id} rail={rail} onSelect={setSelectedTitle} />
+          ))}
       </div>
       <AnimatePresence>
         {selectedTitle && (

@@ -2,13 +2,14 @@
 
 import { Bug, Copy, ExternalLink, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { WatchSource } from "@/lib/player";
 import type { MediaType } from "@/lib/types";
 import {
   getWatchProgressStorageKey,
   parseVidkingMessage,
   type VidkingPlayerEvent,
 } from "@/lib/vidking-events";
+import { markWatchStarted, writeWatchProgress } from "@/lib/watch-progress";
+import { getVidsrcMirrorUrls, type WatchSource } from "@/lib/player";
 
 interface VidkingPlayerFrameProps {
   title: string;
@@ -63,8 +64,19 @@ export function VidkingPlayerFrame({
     [sources],
   );
   const [activeSourceId, setActiveSourceId] = useState(() => iframeSources[0]?.id ?? sources[0]?.id);
-  const activeSource =
+  const [vidsrcMirrorIndex, setVidsrcMirrorIndex] = useState(0);
+  const activeSourceBase =
     iframeSources.find((source) => source.id === activeSourceId) ?? iframeSources[0] ?? sources[0];
+  const vidsrcMirrors = useMemo(
+    () => getVidsrcMirrorUrls({ mediaType, id, season, episode }),
+    [episode, id, mediaType, season],
+  );
+  const activeSource = useMemo(() => {
+    if (!activeSourceBase) return activeSourceBase;
+    if (activeSourceBase.id !== "vidsrc") return activeSourceBase;
+    const mirrorUrl = vidsrcMirrors[vidsrcMirrorIndex] ?? activeSourceBase.url;
+    return { ...activeSourceBase, url: mirrorUrl };
+  }, [activeSourceBase, vidsrcMirrorIndex, vidsrcMirrors]);
   const nextIframeSource = useMemo(() => {
     if (!activeSource || iframeSources.length < 2) {
       return null;
@@ -83,6 +95,7 @@ export function VidkingPlayerFrame({
   const [lines, setLines] = useState<DiagnosticLine[]>([]);
   const [isStalled, setIsStalled] = useState(false);
   const [autoRetryCount, setAutoRetryCount] = useState(0);
+  const [showDiagnostics, setShowDiagnostics] = useState(process.env.NODE_ENV === "test");
   const [pendingRetry, setPendingRetry] = useState<number | null>(null);
   const retryTimerRef = useRef<number | null>(null);
   const restoredSourceKeyRef = useRef<string | null>(null);
@@ -244,6 +257,15 @@ export function VidkingPlayerFrame({
 
       setLastEvent(formatted);
       window.localStorage.setItem(storageKey, JSON.stringify(parsed.data));
+      writeWatchProgress(
+        { id, mediaType, season, episode },
+        {
+          event: parsed.data.event,
+          currentTime: parsed.data.currentTime,
+          duration: parsed.data.duration,
+          progress: parsed.data.progress,
+        },
+      );
       console.debug("[Andshow Vidking] PLAYER_EVENT", parsed.data);
       addLine(formatted);
 
@@ -254,7 +276,15 @@ export function VidkingPlayerFrame({
         } else {
           clearRetryTimer();
           setPendingRetry(null);
-          if (nextIframeSource) {
+          if (activeSource.id === "vidsrc" && vidsrcMirrorIndex + 1 < vidsrcMirrors.length) {
+            const nextMirror = vidsrcMirrorIndex + 1;
+            setVidsrcMirrorIndex(nextMirror);
+            setAutoRetryCount(0);
+            setIsStalled(false);
+            setIframeKey((key) => key + 1);
+            setStatus(`Vidsrc mirror ${nextMirror + 1}/${vidsrcMirrors.length}`);
+            addLine(`switched to Vidsrc mirror ${nextMirror + 1}`);
+          } else if (nextIframeSource) {
             switchIframeSource(
               nextIframeSource,
               `${activeSource.label} exhausted; switched to ${nextIframeSource.label}`,
@@ -377,6 +407,7 @@ export function VidkingPlayerFrame({
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
             allowFullScreen
             onLoad={() => {
+              markWatchStarted({ id, mediaType, season, episode });
               const retryNote =
                 autoRetryCount > 0 ? ` after retry ${autoRetryCount}/${MAX_AUTO_RETRIES}` : "";
               setStatus(`iframe loaded${retryNote}`);
@@ -392,6 +423,17 @@ export function VidkingPlayerFrame({
         </div>
       </div>
 
+      <div className="mt-3 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowDiagnostics((open) => !open)}
+          className="inline-flex h-9 items-center gap-2 rounded-full border border-white/10 px-3 font-mono text-[10.5px] uppercase tracking-[0.16em] text-ash transition-colors hover:bg-white/5 hover:text-silver"
+        >
+          {showDiagnostics ? "Hide diagnostics" : "Diagnostics"}
+        </button>
+      </div>
+
+      {showDiagnostics ? (
       <div className="mt-3 grid gap-3 border border-white/10 bg-white/[0.025] p-3 md:grid-cols-[1fr_auto]">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -511,6 +553,7 @@ export function VidkingPlayerFrame({
           )}
         </div>
       </div>
+      ) : null}
     </>
   );
 }

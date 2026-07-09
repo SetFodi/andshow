@@ -18,6 +18,8 @@ describe("HomeView", () => {
     // Assert
     expect(screen.getByRole("heading", { level: 1, name: featured[0].name })).toBeInTheDocument();
     for (const rail of rails) {
+      // Continue Watching is client-owned and hidden until real progress exists.
+      if (rail.id === "continue-watching") continue;
       expect(screen.getByRole("heading", { name: rail.heading })).toBeInTheDocument();
     }
   });

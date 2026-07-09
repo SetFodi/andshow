@@ -10,10 +10,15 @@ export interface WatchTarget {
 export const DEFAULT_TV_SEASON = 1;
 export const DEFAULT_TV_EPISODE = 1;
 
-export function getWatchPath(title: Title): string {
+export function getWatchPath(
+  title: Pick<Title, "id" | "mediaType">,
+  options?: { season?: number; episode?: number },
+): string {
   if (title.mediaType === "movie") {
     return `/watch/movie/${title.id}`;
   }
 
-  return `/watch/tv/${title.id}/${DEFAULT_TV_SEASON}/${DEFAULT_TV_EPISODE}`;
+  const season = options?.season ?? DEFAULT_TV_SEASON;
+  const episode = options?.episode ?? DEFAULT_TV_EPISODE;
+  return `/watch/tv/${title.id}/${season}/${episode}`;
 }

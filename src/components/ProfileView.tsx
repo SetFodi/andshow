@@ -2,11 +2,12 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Clock, Film, ListVideo, Pencil, Star, Tv } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MovieCard } from "@/components/MovieCard";
 import { MovieDetailModal } from "@/components/MovieDetailModal";
-import { MovieRail } from "@/components/MovieRail";
+import { HomeContinueRail } from "@/components/HomeContinueRail";
 import { EASE_REEL, fadeRise, staggerContainer } from "@/lib/motion";
+import { myListToTitles, readMyList } from "@/lib/my-list";
 import type { Rail, Title } from "@/lib/types";
 
 interface ProfileViewProps {
@@ -41,14 +42,18 @@ function topGenres(titles: readonly Title[]): { name: string; count: number }[] 
     .slice(0, 6);
 }
 
-export function ProfileView({ continueWatching, myList }: ProfileViewProps) {
+export function ProfileView({ continueWatching: _continueWatching, myList: initialMyList }: ProfileViewProps) {
+  void _continueWatching;
   const prefersReducedMotion = useReducedMotion();
   const [selectedTitle, setSelectedTitle] = useState<Title | null>(null);
+  const [myList, setMyList] = useState(initialMyList);
 
-  const watchedPool = useMemo(
-    () => [...continueWatching.items.map((item) => item.title), ...myList],
-    [continueWatching.items, myList],
-  );
+  useEffect(() => {
+    const stored = myListToTitles(readMyList());
+    if (stored.length > 0) setMyList(stored);
+  }, []);
+
+  const watchedPool = useMemo(() => [...myList], [myList]);
   const movieCount = watchedPool.filter((title) => title.mediaType === "movie").length;
   const seriesCount = watchedPool.length - movieCount;
   const genres = useMemo(() => topGenres(watchedPool), [watchedPool]);
@@ -94,7 +99,9 @@ export function ProfileView({ continueWatching, myList }: ProfileViewProps) {
 
           <button
             type="button"
-            className="inline-flex h-11 shrink-0 items-center gap-2 self-start rounded-full border border-white/12 px-5 text-[13px] text-silver transition-colors hover:bg-white/5 sm:self-center"
+            disabled
+            title="Coming soon"
+            className="inline-flex h-11 shrink-0 cursor-not-allowed items-center gap-2 self-start rounded-full border border-white/12 px-5 text-[13px] text-ash/60 sm:self-center"
           >
             <Pencil size={14} aria-hidden="true" />
             Edit profile
@@ -146,11 +153,9 @@ export function ProfileView({ continueWatching, myList }: ProfileViewProps) {
         )}
       </section>
 
-      {continueWatching.items.length > 0 && (
-        <div className="mt-10">
-          <MovieRail rail={continueWatching} onSelect={setSelectedTitle} />
-        </div>
-      )}
+      <div className="mt-10">
+        <HomeContinueRail onSelect={setSelectedTitle} />
+      </div>
 
       <section className="px-5 py-10 md:px-10 lg:px-12" aria-labelledby="my-list-heading">
         <div className="mb-5 flex items-center gap-3">

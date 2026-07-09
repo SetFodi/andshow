@@ -116,6 +116,7 @@ export function CatalogGridView({
   const [sortKey, setSortKey] = useState<SortKey>("curated");
   const [selectedTitle, setSelectedTitle] = useState<Title | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inflightRequestRef = useRef<string | null>(null);
 
   const activeCatalogState =
@@ -129,6 +130,7 @@ export function CatalogGridView({
 
       inflightRequestRef.current = requestKey;
       setLoading(true);
+      setError(null);
       try {
         const params = new URLSearchParams({
           scope,
@@ -160,6 +162,8 @@ export function CatalogGridView({
             totalResults: data.totalResults,
           };
         });
+      } catch {
+        setError("Could not load more titles. Check your connection and try again.");
       } finally {
         setLoading(false);
         if (inflightRequestRef.current === requestKey) {
@@ -356,6 +360,19 @@ export function CatalogGridView({
               <p className="font-display text-3xl italic text-silver">No titles found.</p>
               <p className="mt-2 text-sm text-ash">Try another genre or sort mode.</p>
             </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-8 flex flex-col items-center gap-3 text-center">
+            <p className="text-sm text-ash">{error}</p>
+            <button
+              type="button"
+              onClick={() => void fetchPage(1, selectedGenre, false)}
+              className="inline-flex h-10 items-center rounded-full border border-white/10 px-5 text-[13px] text-silver hover:bg-white/5"
+            >
+              Retry
+            </button>
           </div>
         )}
 

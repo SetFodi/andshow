@@ -1,10 +1,12 @@
 import Link from "next/link";
 
 const FOOTER_LINKS = [
+  { href: "/", label: "Home" },
   { href: "/movies", label: "Movies" },
   { href: "/tv", label: "TV Shows" },
   { href: "/browse", label: "Browse" },
   { href: "/search", label: "Search" },
+  { href: "/profile", label: "Profile" },
 ] as const;
 
 export function Footer() {
@@ -33,8 +35,8 @@ export function Footer() {
         </nav>
       </div>
       <div className="mt-10 flex flex-col gap-2 border-t border-white/[0.04] pt-5 font-mono text-[10.5px] uppercase tracking-[0.22em] text-ash/70 md:flex-row md:justify-between">
-        <p>Andshow · MMXXVI · UI preview</p>
-        <p>Catalog via TMDB when configured · mock fallback · embed playback</p>
+        <p>Andshow · MMXXVI</p>
+        <p>Catalog via TMDB · playback via embed sources</p>
       </div>
     </footer>
   );

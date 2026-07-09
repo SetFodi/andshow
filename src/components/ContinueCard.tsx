@@ -1,31 +1,27 @@
 "use client";
 
 import { Play } from "lucide-react";
+import Link from "next/link";
 import { CatalogImage } from "@/components/CatalogImage";
 import { backdropUrl } from "@/lib/tmdb-image";
 import type { RailItem } from "@/lib/types";
+import { getWatchPath } from "@/lib/watch-path";
 
 interface ContinueCardProps {
   item: RailItem;
-  onSelect: (title: RailItem["title"]) => void;
 }
 
 const FULL_WIDTH_PERCENT = 100;
 
-/**
- * Wide resume card for the Continue Watching rail: backdrop still,
- * time-remaining label, and a velvet progress line along the base.
- */
-export function ContinueCard({ item, onSelect }: ContinueCardProps) {
-  const { title, progress = 0, remainingLabel } = item;
+export function ContinueCard({ item }: ContinueCardProps) {
+  const { title, progress = 0, remainingLabel, season, episode } = item;
   const progressPercent = Math.min(Math.max(progress, 0), 1) * FULL_WIDTH_PERCENT;
+  const href = getWatchPath(title, { season, episode });
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(title)}
+    <Link
+      href={href}
       aria-label={`Resume ${title.name}${remainingLabel ? ` — ${remainingLabel}` : ""}`}
-      aria-haspopup="dialog"
       className="group relative w-[290px] shrink-0 transform-gpu snap-start rounded-xl transition-transform duration-500 ease-reel hover:z-10 hover:scale-[1.03] focus-visible:z-10 focus-visible:scale-[1.03] sm:w-[330px]"
     >
       <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-graphite ring-1 ring-white/[0.07]">
@@ -54,6 +50,6 @@ export function ContinueCard({ item, onSelect }: ContinueCardProps) {
           <div className="h-full bg-velvet" style={{ width: `${progressPercent}%` }} />
         </div>
       </div>
-    </button>
+    </Link>
   );
 }

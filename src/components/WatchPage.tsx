@@ -13,6 +13,8 @@ interface WatchPageProps {
   episodeLabel?: string;
   season?: number;
   episode?: number;
+  nextHref?: string | null;
+  nextLabel?: string | null;
 }
 
 export function WatchPage({
@@ -21,8 +23,12 @@ export function WatchPage({
   episodeLabel,
   season,
   episode,
+  nextHref,
+  nextLabel,
 }: WatchPageProps) {
   const hasIframeSource = sources.some((source) => source.kind === "iframe");
+  const backHref = title.mediaType === "movie" ? "/movies" : "/tv";
+  const backLabel = title.mediaType === "movie" ? "Back to movies" : "Back to TV";
 
   return (
     <section className="relative min-h-screen overflow-hidden px-5 pb-12 pt-24 md:px-10 lg:px-12">
@@ -41,11 +47,11 @@ export function WatchPage({
       <div className="mx-auto max-w-6xl">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
           <Link
-            href="/"
+            href={backHref}
             className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 px-4 text-[13px] text-ash transition-colors hover:bg-white/5 hover:text-silver"
           >
             <ArrowLeft size={15} aria-hidden="true" />
-            Back to lobby
+            {backLabel}
           </Link>
           <p className="font-mono text-[10.5px] uppercase tracking-[0.28em] text-ash/80">
             Andshow Screening Room
@@ -108,17 +114,34 @@ export function WatchPage({
             <p className="font-mono text-[10.5px] uppercase tracking-[0.3em] text-ash">
               Next Up
             </p>
-            <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-velvet text-white">
-                <Play size={14} strokeWidth={0} className="ml-0.5 fill-current" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-silver">{title.name}</p>
-                <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ash">
-                  {episodeLabel ?? title.runtimeLabel}
-                </p>
+            {nextHref ? (
+              <Link
+                href={nextHref}
+                className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 transition-colors hover:bg-white/[0.06]"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-velvet text-white">
+                  <Play size={14} strokeWidth={0} className="ml-0.5 fill-current" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-silver">{title.name}</p>
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ash">
+                    {nextLabel ?? "Next episode"}
+                  </p>
+                </div>
+              </Link>
+            ) : (
+              <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-graphite text-ash">
+                  <Play size={14} strokeWidth={0} className="ml-0.5 fill-current" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-silver">{title.name}</p>
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ash">
+                    {title.mediaType === "tv" ? "End of available episodes" : title.runtimeLabel}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </aside>
         </div>
       </div>

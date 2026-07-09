@@ -3,7 +3,7 @@ import { DEFAULT_TV_EPISODE, DEFAULT_TV_SEASON, type WatchTarget } from "@/lib/w
 const VIDKING_BASE_URL = "https://www.vidking.net/embed";
 const CINEBY_BASE_URL = "https://www.cineby.at";
 const ANDSHOW_PLAYER_COLOR = "dd6a71";
-const DEFAULT_VIDSRC_BASE_URL = "https://vidsrc-embed.ru";
+const DEFAULT_VIDSRC_BASE_URL = "https://vidsrcme.su";
 
 export interface WatchSource {
   id: string;
@@ -14,8 +14,35 @@ export interface WatchSource {
   progressOrigin?: string;
 }
 
+const VIDSRC_MIRRORS = [
+  "https://vidsrcme.su",
+  "https://vidsrc-embed.su",
+  "https://vsrc.su",
+  "https://vidsrc-embed.ru",
+] as const;
+
 function getVidsrcBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_VIDSRC_EMBED_BASE_URL?.trim() || DEFAULT_VIDSRC_BASE_URL;
+  const configured = process.env.NEXT_PUBLIC_VIDSRC_EMBED_BASE_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+  return DEFAULT_VIDSRC_BASE_URL;
+}
+
+export function getVidsrcMirrorUrls(target: WatchTarget): string[] {
+  const preferred = getVidsrcBaseUrl();
+  const bases = [preferred, ...VIDSRC_MIRRORS.filter((mirror) => mirror !== preferred)];
+  return bases.map((base) => {
+    if (target.mediaType === "tv") {
+      const season = target.season ?? DEFAULT_TV_SEASON;
+      const episode = target.episode ?? DEFAULT_TV_EPISODE;
+      const url = new URL(`${base}/embed/tv/${target.id}/${season}-${episode}`);
+      url.searchParams.set("autoplay", "1");
+      url.searchParams.set("autonext", "1");
+      return url.toString();
+    }
+    const url = new URL(`${base}/embed/movie/${target.id}`);
+    url.searchParams.set("autoplay", "1");
+    return url.toString();
+  });
 }
 
 export function getVidsrcPlayerUrl(target: WatchTarget): string {

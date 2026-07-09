@@ -1,11 +1,27 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { MovieDetailModal } from "@/components/MovieDetailModal";
 import { MOCK_TITLES } from "@/data/mockMovies";
 import { getWatchPath } from "@/lib/watch-path";
 
 const sampleTitle = MOCK_TITLES[1];
+
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      ({
+        ok: true,
+        json: async () => ({ title: sampleTitle, seasons: [] }),
+      }) as Response,
+    ),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("MovieDetailModal", () => {
   test("renders name, overview, genres, cast, and Watch Now", () => {
