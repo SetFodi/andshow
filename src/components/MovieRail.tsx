@@ -5,7 +5,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef } from "react";
 import { ContinueCard } from "@/components/ContinueCard";
 import { MovieCard } from "@/components/MovieCard";
-import type { Rail, Title } from "@/lib/types";
+import type { Rail, RailItem, Title } from "@/lib/types";
+import { titleKey } from "@/lib/titles";
 
 interface MovieRailProps {
   rail: Rail;
@@ -14,6 +15,15 @@ interface MovieRailProps {
 
 const SCROLL_RATIO = 0.85;
 const REEL_EASE = [0.22, 1, 0.36, 1] as const;
+
+/** Stable list key; include episode for continue-watching (same show, multiple progress rows). */
+function railItemKey(item: RailItem, index: number): string {
+  const base = titleKey(item.title);
+  if (item.season != null || item.episode != null) {
+    return `${base}-s${item.season ?? "x"}-e${item.episode ?? "x"}`;
+  }
+  return `${base}-${index}`;
+}
 
 /** Horizontally scrollable shelf of cards with edge fade and chevrons. */
 export function MovieRail({ rail, onSelect }: MovieRailProps) {
@@ -67,11 +77,11 @@ export function MovieRail({ rail, onSelect }: MovieRailProps) {
         ref={scrollerRef}
         className="rail-mask no-scrollbar flex snap-x gap-3.5 overflow-x-auto px-5 py-3 md:px-10 lg:px-12"
       >
-        {rail.items.map((item) =>
+        {rail.items.map((item, index) =>
           rail.layout === "wide" ? (
-            <ContinueCard key={`${item.title.mediaType}-${item.title.id}`} item={item} />
+            <ContinueCard key={railItemKey(item, index)} item={item} />
           ) : (
-            <MovieCard key={`${item.title.mediaType}-${item.title.id}`} title={item.title} onSelect={onSelect} />
+            <MovieCard key={railItemKey(item, index)} title={item.title} onSelect={onSelect} />
           ),
         )}
       </div>
