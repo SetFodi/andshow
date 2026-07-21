@@ -43,4 +43,33 @@ describe("watch-progress", () => {
     );
     expect(listContinueWatchingFromStorage()).toHaveLength(0);
   });
+
+  test("keeps separate continue rows for different episodes of the same show", () => {
+    window.localStorage.setItem(
+      "andshow:watch-progress:tv:130464:1:1",
+      JSON.stringify({
+        event: "timeupdate",
+        progress: 30,
+        id: "130464",
+        mediaType: "tv",
+        season: 1,
+        episode: 1,
+      }),
+    );
+    window.localStorage.setItem(
+      "andshow:watch-progress:tv:130464:2:3",
+      JSON.stringify({
+        event: "timeupdate",
+        progress: 55,
+        id: "130464",
+        mediaType: "tv",
+        season: 2,
+        episode: 3,
+      }),
+    );
+
+    const entries = listContinueWatchingFromStorage();
+    expect(entries).toHaveLength(2);
+    expect(entries.map((e) => `${e.season}-${e.episode}`).sort()).toEqual(["1-1", "2-3"]);
+  });
 });

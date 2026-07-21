@@ -124,7 +124,7 @@ function formatRemaining(data: StoredWatchProgress): string {
 export function listContinueWatchingFromStorage(): ContinueWatchingLocalEntry[] {
   if (!canUseStorage()) return [];
 
-  const entries: ContinueWatchingLocalEntry[] = [];
+  const byKey = new Map<string, ContinueWatchingLocalEntry>();
 
   for (let i = 0; i < window.localStorage.length; i += 1) {
     const key = window.localStorage.key(i);
@@ -145,18 +145,24 @@ export function listContinueWatchingFromStorage(): ContinueWatchingLocalEntry[] 
       if (!Number.isFinite(id) || id <= 0) continue;
       if (data.mediaType !== "movie" && data.mediaType !== "tv") continue;
 
-      entries.push({
+      const entry: ContinueWatchingLocalEntry = {
         id,
         mediaType: data.mediaType,
         season: data.season,
         episode: data.episode,
         progress: progressRatio,
         remainingLabel: formatRemaining(data),
-      });
+      };
+
+      // One row per storage key (media + id + season + episode).
+      const existing = byKey.get(key);
+      if (!existing || entry.progress > existing.progress) {
+        byKey.set(key, entry);
+      }
     } catch {
       // skip corrupt entries
     }
   }
 
-  return entries.sort((a, b) => b.progress - a.progress).slice(0, 12);
+  return [...byKey.values()].sort((a, b) => b.progress - a.progress).slice(0, 12);
 }

@@ -16,13 +16,12 @@ interface MovieRailProps {
 const SCROLL_RATIO = 0.85;
 const REEL_EASE = [0.22, 1, 0.36, 1] as const;
 
-/** Stable list key; include episode for continue-watching (same show, multiple progress rows). */
+/** Stable unique list key (same title can appear for different episodes). */
 function railItemKey(item: RailItem, index: number): string {
   const base = titleKey(item.title);
-  if (item.season != null || item.episode != null) {
-    return `${base}-s${item.season ?? "x"}-e${item.episode ?? "x"}`;
-  }
-  return `${base}-${index}`;
+  const season = item.season != null ? `s${item.season}` : "sx";
+  const episode = item.episode != null ? `e${item.episode}` : "ex";
+  return `${base}-${season}-${episode}-${index}`;
 }
 
 /** Horizontally scrollable shelf of cards with edge fade and chevrons. */
